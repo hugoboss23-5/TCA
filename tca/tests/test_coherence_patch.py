@@ -22,7 +22,7 @@ from tca.L4_temporal.coherence import CoherenceDetector
 from tca.L5_metacognition.confidence import compute_confidence
 from tca.L5_metacognition.confidence_v2 import compute_confidence_v2
 from tca.L3_grounding.resonance import (
-    FileSystemSource, test_resonance,
+    FileSystemSource, measure_resonance,
 )
 from tca.L0_protocol.schema import (
     serialize_tca_state, deserialize_tca_state, export_boot_protocol,
@@ -100,7 +100,7 @@ class TestCoherencePatchIntegration(unittest.TestCase):
         self.assertGreaterEqual(v2_report.dynamic_coherence, 0.0)
         self.assertLessEqual(v2_report.dynamic_coherence, 1.0)
 
-    def test_resonance_grounding_integration(self):
+    def measure_resonance_grounding_integration(self):
         """Resonance grounding with FileSystemSource on a live graph."""
         g = _build_integration_graph()
         node = g.get_node("topo")
@@ -111,7 +111,7 @@ class TestCoherencePatchIntegration(unittest.TestCase):
 
         try:
             source = FileSystemSource(tmp_path)
-            alignment = test_resonance(node, source, g)
+            alignment = measure_resonance(node, source, g)
             self.assertGreater(alignment, 0.0)
             self.assertLessEqual(alignment, 1.0)
         finally:

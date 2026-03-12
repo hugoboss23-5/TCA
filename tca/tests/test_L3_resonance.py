@@ -8,7 +8,7 @@ from tca.L2_graph.topo_node import EdgeType
 from tca.L2_graph.operations import TopologicalGraph
 from tca.L3_grounding.resonance import (
     SignalSource, FileSystemSource, CodeExecutionSource,
-    test_resonance, derive_prediction_from_topology,
+    measure_resonance, derive_prediction_from_topology,
     compute_alignment, update_graph_from_resonance,
 )
 
@@ -29,7 +29,7 @@ class TestFileSystemSource(unittest.TestCase):
         try:
             source = FileSystemSource(tmp_path)
             node = g.get_node("S")
-            alignment = test_resonance(node, source, g)
+            alignment = measure_resonance(node, source, g)
             self.assertGreater(alignment, 0.5,
                                f"Correct claim should give high alignment, "
                                f"got {alignment:.3f}")
@@ -46,7 +46,7 @@ class TestFileSystemSource(unittest.TestCase):
 
         source = FileSystemSource("/nonexistent/path/xyz123.txt")
         node = g.get_node("S")
-        alignment = test_resonance(node, source, g)
+        alignment = measure_resonance(node, source, g)
         self.assertLess(alignment, 0.5,
                         f"Incorrect claim should give low alignment, "
                         f"got {alignment:.3f}")
@@ -62,7 +62,7 @@ class TestFileSystemSource(unittest.TestCase):
         weight_before = node.edges["T"][0].weight
 
         source = FileSystemSource("/nonexistent/path/abc.txt")
-        test_resonance(node, source, g)
+        measure_resonance(node, source, g)
 
         weight_after = node.edges["T"][0].weight
         self.assertLess(weight_after, weight_before,
@@ -84,7 +84,7 @@ class TestFileSystemSource(unittest.TestCase):
             weight_before = node.edges["T"][0].weight
 
             source = FileSystemSource(tmp_path)
-            test_resonance(node, source, g)
+            measure_resonance(node, source, g)
 
             weight_after = node.edges["T"][0].weight
             self.assertGreater(weight_after, weight_before,
@@ -97,7 +97,7 @@ class TestFileSystemSource(unittest.TestCase):
 class TestCustomSignalSource(unittest.TestCase):
 
     def test_custom_source_works_without_modifying_tca(self):
-        """A new SignalSource subclass works with test_resonance unchanged."""
+        """A new SignalSource subclass works with measure_resonance unchanged."""
 
         class TemperatureSource(SignalSource):
             """Hypothetical hardware source — proves interface is open."""
@@ -105,7 +105,7 @@ class TestCustomSignalSource(unittest.TestCase):
                 self.temp = temp
 
             def measure(self) -> dict:
-                return {"warm": self.temp > 20.0,
+                return {"positive": self.temp > 20.0,
                         "source_type": "temperature"}
 
         g = TopologicalGraph()
@@ -117,29 +117,29 @@ class TestCustomSignalSource(unittest.TestCase):
 
         # Warm temperature → "warm" is truthy → aligns with VERIFIES.
         warm_source = TemperatureSource(25.0)
-        alignment = test_resonance(node, warm_source, g)
+        alignment = measure_resonance(node, warm_source, g)
         self.assertGreater(alignment, 0.5)
 
         # Cold temperature → "warm" is False → misaligns with VERIFIES.
         cold_source = TemperatureSource(10.0)
-        alignment = test_resonance(node, cold_source, g)
+        alignment = measure_resonance(node, cold_source, g)
         self.assertLess(alignment, 0.5)
 
 
 class TestCodeExecutionSource(unittest.TestCase):
 
     def test_successful_code(self):
-        """CodeExecutionSource with valid code → success signal."""
+        """CodeExecutionSource with valid code → positive signal."""
         source = CodeExecutionSource("x = 1 + 1")
         signal = source.measure()
-        self.assertTrue(signal["success"])
+        self.assertTrue(signal["positive"])
         self.assertIsNone(signal["error"])
 
     def test_failing_code(self):
-        """CodeExecutionSource with invalid code → failure signal."""
+        """CodeExecutionSource with invalid code → negative signal."""
         source = CodeExecutionSource("raise ValueError('oops')")
         signal = source.measure()
-        self.assertFalse(signal["success"])
+        self.assertFalse(signal["positive"])
         self.assertIn("oops", signal["error"])
 
 

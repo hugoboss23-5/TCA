@@ -44,8 +44,8 @@ class FileSystemSource(SignalSource):
         self.path = path
 
     def measure(self) -> dict:
-        return {"exists": os.path.exists(self.path),
-                "source_type": "filesystem"}
+        exists = os.path.exists(self.path)
+        return {"positive": exists, "source_type": "filesystem"}
 
 
 class CodeExecutionSource(SignalSource):
@@ -57,9 +57,9 @@ class CodeExecutionSource(SignalSource):
     def measure(self) -> dict:
         try:
             exec(self.code_string)  # noqa: S102 — intentional for grounding
-            return {"success": True, "error": None, "source_type": "code"}
+            return {"positive": True, "error": None, "source_type": "code"}
         except Exception as e:
-            return {"success": False, "error": str(e), "source_type": "code"}
+            return {"positive": False, "error": str(e), "source_type": "code"}
 
 
 def derive_prediction_from_topology(node: TopologicalNode,
@@ -93,19 +93,13 @@ def derive_prediction_from_topology(node: TopologicalNode,
 def compute_alignment(prediction: dict, signal: dict) -> float:
     """Compute phase alignment between topology prediction and signal.
 
+    All signal sources return {"positive": bool, ...}. This function
+    reads ONLY signal["positive"] — never branches on source_type.
+    Any object with measure() → {"positive": bool} works.
+
     Returns 0.0 (completely wrong) to 1.0 (perfect resonance).
     """
-    source_type = signal.get("source_type", "")
-
-    if source_type == "filesystem":
-        signal_positive = signal.get("exists", False)
-    elif source_type == "code":
-        signal_positive = signal.get("success", False)
-    else:
-        # Generic: look for any truthy value in signal.
-        signal_positive = any(
-            v for k, v in signal.items() if k != "source_type"
-        )
+    signal_positive = signal.get("positive", False)
 
     pred_positive = prediction.get("predicted_positive", True)
     pred_confidence = prediction.get("confidence", 0.5)
@@ -142,7 +136,7 @@ def update_graph_from_resonance(node: TopologicalNode,
                 rel.weight = max(_MIN_WEIGHT, rel.weight - weaken)
 
 
-def test_resonance(node: TopologicalNode,
+def measure_resonance(node: TopologicalNode,
                    signal_source: SignalSource,
                    graph: TopologicalGraph) -> float:
     """THE CORE GROUNDING PRIMITIVE.
