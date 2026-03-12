@@ -1,0 +1,92 @@
+{
+  "name": "Tanakh Structure",
+  "description": "Topology of Torah, covenant, justice-mercy tension, and prophetic aspiration",
+  "L2_graph": {
+    "nodes": [
+      {"id": "torah", "label": "Torah", "edges": [
+        {"target": "covenant", "type": "EXPRESSES", "weight": 2.0, "grounded": false},
+        {"target": "creation", "type": "INHERITS", "weight": 1.5, "grounded": false},
+        {"target": "justice", "type": "EXPRESSES", "weight": 1.5, "grounded": false},
+        {"target": "mercy", "type": "EXPRESSES", "weight": 1.5, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "covenant", "label": "Covenant", "edges": [
+        {"target": "abraham", "type": "INHERITS", "weight": 1.5, "grounded": false},
+        {"target": "moses", "type": "INHERITS", "weight": 1.5, "grounded": false},
+        {"target": "david", "type": "INHERITS", "weight": 1.2, "grounded": false},
+        {"target": "land", "type": "EXPRESSES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "creation", "label": "Creation", "edges": [
+        {"target": "shabbat", "type": "EXPRESSES", "weight": 1.5, "grounded": false},
+        {"target": "wisdom", "type": "EXPRESSES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "abraham", "label": "Abraham", "edges": [
+        {"target": "chesed", "type": "MIRRORS", "weight": 1.5, "grounded": false},
+        {"target": "covenant", "type": "VERIFIES", "weight": 1.2, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "moses", "label": "Moses", "edges": [
+        {"target": "revelation", "type": "EXPRESSES", "weight": 2.0, "grounded": false},
+        {"target": "torah", "type": "VERIFIES", "weight": 1.5, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "david", "label": "David", "edges": [
+        {"target": "temple", "type": "SEEKS", "weight": 1.5, "grounded": false},
+        {"target": "malchut", "type": "MIRRORS", "weight": 1.2, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "justice", "label": "Din (Justice)", "edges": [
+        {"target": "mercy", "type": "BOUNDS", "weight": 1.5, "grounded": false},
+        {"target": "prophecy", "type": "EXPRESSES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "mercy", "label": "Chesed (Mercy)", "edges": [
+        {"target": "justice", "type": "BOUNDS", "weight": 1.5, "grounded": false},
+        {"target": "teshuvah", "type": "EXPRESSES", "weight": 1.2, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "chesed", "label": "Chesed (Lovingkindness)", "edges": [
+        {"target": "mercy", "type": "MIRRORS", "weight": 1.5, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "tiferet", "label": "Tiferet (Beauty/Balance)", "edges": [
+        {"target": "justice", "type": "INHERITS", "weight": 1.0, "grounded": false},
+        {"target": "mercy", "type": "INHERITS", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "malchut", "label": "Malchut (Sovereignty)", "edges": [
+        {"target": "tiferet", "type": "INHERITS", "weight": 1.0, "grounded": false},
+        {"target": "land", "type": "EXPRESSES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "revelation", "label": "Revelation at Sinai", "edges": [
+        {"target": "torah", "type": "VERIFIES", "weight": 2.0, "grounded": false},
+        {"target": "community", "type": "EXPRESSES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "prophecy", "label": "Prophecy", "edges": [
+        {"target": "teshuvah", "type": "SEEKS", "weight": 1.5, "grounded": false},
+        {"target": "exile", "type": "VERIFIES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "exile", "label": "Exile (Galut)", "edges": [
+        {"target": "return", "type": "SEEKS", "weight": 2.0, "grounded": false},
+        {"target": "temple", "type": "REMOVES", "weight": 1.5, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "return", "label": "Return (Shivat Tzion)", "edges": [
+        {"target": "land", "type": "VERIFIES", "weight": 1.5, "grounded": false},
+        {"target": "temple", "type": "SEEKS", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "temple", "label": "Temple (Beit HaMikdash)", "edges": [
+        {"target": "sacrifice", "type": "EXPRESSES", "weight": 1.5, "grounded": false},
+        {"target": "covenant", "type": "VERIFIES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "teshuvah", "label": "Teshuvah (Return/Repentance)", "edges": [
+        {"target": "covenant", "type": "VERIFIES", "weight": 1.5, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "shabbat", "label": "Shabbat", "edges": [
+        {"target": "covenant", "type": "VERIFIES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "land", "label": "Land of Israel", "edges": [], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "wisdom", "label": "Chochmah (Wisdom)", "edges": [
+        {"target": "fear_of_god", "type": "INHERITS", "weight": 1.5, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "fear_of_god", "label": "Yirat Hashem (Awe of God)", "edges": [
+        {"target": "torah", "type": "SEEKS", "weight": 1.5, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "community", "label": "Am Yisrael (Community)", "edges": [
+        {"target": "covenant", "type": "MIRRORS", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "sacrifice", "label": "Korbanot (Sacrifice)", "edges": [], "activation": 0.0, "decay_rate": 0.1}
+    ]
+  }
+}

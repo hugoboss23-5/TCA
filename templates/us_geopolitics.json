@@ -1,0 +1,75 @@
+{
+  "name": "US Geopolitics",
+  "description": "Topology of American power projection, alliances, contradictions, and structural dependencies",
+  "L2_graph": {
+    "nodes": [
+      {"id": "us_military", "label": "US Military", "edges": [
+        {"target": "nato", "type": "EXPRESSES", "weight": 2.0, "grounded": false},
+        {"target": "middle_east", "type": "BOUNDS", "weight": 1.5, "grounded": false},
+        {"target": "nuclear", "type": "EXPRESSES", "weight": 1.5, "grounded": false},
+        {"target": "defense_budget", "type": "INHERITS", "weight": 1.2, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "nato", "label": "NATO Alliance", "edges": [
+        {"target": "allies", "type": "EXPRESSES", "weight": 1.5, "grounded": false},
+        {"target": "russia", "type": "BOUNDS", "weight": 1.5, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "dollar", "label": "Dollar Hegemony", "edges": [
+        {"target": "sanctions", "type": "EXPRESSES", "weight": 1.5, "grounded": false},
+        {"target": "economic_leverage", "type": "EXPRESSES", "weight": 1.5, "grounded": false},
+        {"target": "trade", "type": "BOUNDS", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "china_comp", "label": "China Competition", "edges": [
+        {"target": "trade", "type": "BOUNDS", "weight": 1.5, "grounded": false},
+        {"target": "cyber", "type": "EXPRESSES", "weight": 1.0, "grounded": false},
+        {"target": "dollar", "type": "REMOVES", "weight": 0.8, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "russia", "label": "Russia", "edges": [
+        {"target": "nuclear", "type": "MIRRORS", "weight": 1.5, "grounded": false},
+        {"target": "energy", "type": "BOUNDS", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "middle_east", "label": "Middle East Engagement", "edges": [
+        {"target": "energy", "type": "SEEKS", "weight": 1.5, "grounded": false},
+        {"target": "israel", "type": "EXPRESSES", "weight": 1.2, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "israel", "label": "Israel Alliance", "edges": [
+        {"target": "intelligence", "type": "MIRRORS", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "democracy", "label": "Democracy Promotion", "edges": [
+        {"target": "allies", "type": "REMOVES", "weight": 0.8, "grounded": false},
+        {"target": "cultural_influence", "type": "EXPRESSES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "sanctions", "label": "Sanctions Regime", "edges": [
+        {"target": "russia", "type": "BOUNDS", "weight": 1.2, "grounded": false},
+        {"target": "china_comp", "type": "BOUNDS", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "intelligence", "label": "Intelligence Community", "edges": [
+        {"target": "cyber", "type": "EXPRESSES", "weight": 1.2, "grounded": false},
+        {"target": "middle_east", "type": "VERIFIES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "energy", "label": "Energy Security", "edges": [
+        {"target": "dollar", "type": "VERIFIES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "nuclear", "label": "Nuclear Deterrence", "edges": [
+        {"target": "russia", "type": "BOUNDS", "weight": 2.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "cyber", "label": "Cyber Operations", "edges": [
+        {"target": "china_comp", "type": "MIRRORS", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "trade", "label": "Trade Policy", "edges": [
+        {"target": "economic_leverage", "type": "EXPRESSES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "allies", "label": "Allied Nations", "edges": [
+        {"target": "un_security", "type": "EXPRESSES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "un_security", "label": "UN Security Council", "edges": [], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "defense_budget", "label": "Defense Budget", "edges": [
+        {"target": "us_military", "type": "EXPRESSES", "weight": 1.5, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "immigration", "label": "Immigration", "edges": [
+        {"target": "cultural_influence", "type": "EXPRESSES", "weight": 0.8, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "economic_leverage", "label": "Economic Leverage", "edges": [], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "cultural_influence", "label": "Cultural Influence", "edges": [], "activation": 0.0, "decay_rate": 0.1}
+    ]
+  }
+}

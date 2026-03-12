@@ -1,0 +1,74 @@
+{
+  "name": "OpenAI",
+  "description": "Topology of the AGI race: safety vs speed, open vs closed, mission vs revenue",
+  "L2_graph": {
+    "nodes": [
+      {"id": "gpt", "label": "GPT Models", "edges": [
+        {"target": "chatgpt", "type": "EXPRESSES", "weight": 2.0, "grounded": false},
+        {"target": "api_revenue", "type": "EXPRESSES", "weight": 1.5, "grounded": false},
+        {"target": "scaling_laws", "type": "INHERITS", "weight": 1.5, "grounded": false},
+        {"target": "rlhf", "type": "INHERITS", "weight": 1.2, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "safety", "label": "Safety Research", "edges": [
+        {"target": "agi_mission", "type": "BOUNDS", "weight": 2.0, "grounded": false},
+        {"target": "commercialization", "type": "BOUNDS", "weight": 1.5, "grounded": false},
+        {"target": "regulatory", "type": "EXPRESSES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "commercialization", "label": "Commercialization", "edges": [
+        {"target": "api_revenue", "type": "EXPRESSES", "weight": 2.0, "grounded": false},
+        {"target": "microsoft", "type": "VERIFIES", "weight": 1.5, "grounded": false},
+        {"target": "open_source", "type": "REMOVES", "weight": 1.2, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "microsoft", "label": "Microsoft Partnership", "edges": [
+        {"target": "compute", "type": "EXPRESSES", "weight": 2.0, "grounded": false},
+        {"target": "board", "type": "BOUNDS", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "board", "label": "Board Governance", "edges": [
+        {"target": "altman", "type": "BOUNDS", "weight": 1.5, "grounded": false},
+        {"target": "safety", "type": "SEEKS", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "altman", "label": "Sam Altman", "edges": [
+        {"target": "commercialization", "type": "EXPRESSES", "weight": 1.5, "grounded": false},
+        {"target": "agi_mission", "type": "SEEKS", "weight": 1.5, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "anthropic", "label": "Anthropic Split", "edges": [
+        {"target": "safety", "type": "MIRRORS", "weight": 1.5, "grounded": false},
+        {"target": "commercialization", "type": "REMOVES", "weight": 0.8, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "open_source", "label": "Open Source Debate", "edges": [
+        {"target": "dev_ecosystem", "type": "EXPRESSES", "weight": 1.5, "grounded": false},
+        {"target": "safety", "type": "REMOVES", "weight": 0.8, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "agi_mission", "label": "AGI Mission", "edges": [
+        {"target": "compute", "type": "SEEKS", "weight": 2.0, "grounded": false},
+        {"target": "talent", "type": "SEEKS", "weight": 1.5, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "compute", "label": "Compute Infrastructure", "edges": [
+        {"target": "scaling_laws", "type": "VERIFIES", "weight": 1.5, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "api_revenue", "label": "API Revenue", "edges": [
+        {"target": "dev_ecosystem", "type": "EXPRESSES", "weight": 1.5, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "chatgpt", "label": "ChatGPT", "edges": [
+        {"target": "api_revenue", "type": "VERIFIES", "weight": 1.5, "grounded": false},
+        {"target": "copyright", "type": "SEEKS", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "regulatory", "label": "Regulatory Engagement", "edges": [
+        {"target": "agi_mission", "type": "BOUNDS", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "talent", "label": "Talent Acquisition", "edges": [
+        {"target": "gpt", "type": "VERIFIES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "copyright", "label": "Copyright Lawsuits", "edges": [
+        {"target": "chatgpt", "type": "BOUNDS", "weight": 1.2, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "scaling_laws", "label": "Scaling Laws", "edges": [
+        {"target": "agi_mission", "type": "VERIFIES", "weight": 1.5, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "rlhf", "label": "RLHF", "edges": [
+        {"target": "safety", "type": "VERIFIES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "dev_ecosystem", "label": "Developer Ecosystem", "edges": [], "activation": 0.0, "decay_rate": 0.1}
+    ]
+  }
+}

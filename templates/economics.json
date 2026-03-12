@@ -1,0 +1,86 @@
+{
+  "name": "Global Economic System",
+  "description": "Topology of money creation, production, distribution, narrative, and externalities",
+  "L2_graph": {
+    "nodes": [
+      {"id": "fed", "label": "Federal Reserve / Central Banks", "edges": [
+        {"target": "fiat", "type": "EXPRESSES", "weight": 2.0, "grounded": false},
+        {"target": "interest_rates", "type": "BOUNDS", "weight": 1.5, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "fiat", "label": "Fiat Currency", "edges": [
+        {"target": "debt", "type": "MIRRORS", "weight": 1.5, "grounded": false},
+        {"target": "consumer_spending", "type": "EXPRESSES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "debt", "label": "National Debt", "edges": [
+        {"target": "fiat", "type": "MIRRORS", "weight": 1.5, "grounded": false},
+        {"target": "interest_rates", "type": "EXPRESSES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "interest_rates", "label": "Interest Rates", "edges": [
+        {"target": "housing", "type": "BOUNDS", "weight": 1.2, "grounded": false},
+        {"target": "banking", "type": "EXPRESSES", "weight": 1.0, "grounded": false},
+        {"target": "stock_market", "type": "BOUNDS", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "gdp", "label": "GDP", "edges": [
+        {"target": "employment", "type": "EXPRESSES", "weight": 1.5, "grounded": false},
+        {"target": "tax_revenue", "type": "EXPRESSES", "weight": 1.0, "grounded": false},
+        {"target": "wellbeing", "type": "SEEKS", "weight": 0.8, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "employment", "label": "Employment", "edges": [
+        {"target": "wages", "type": "EXPRESSES", "weight": 1.2, "grounded": false},
+        {"target": "consumer_spending", "type": "EXPRESSES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "wages", "label": "Wages", "edges": [
+        {"target": "consumer_spending", "type": "EXPRESSES", "weight": 1.0, "grounded": false},
+        {"target": "housing", "type": "SEEKS", "weight": 0.8, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "consumer_spending", "label": "Consumer Spending", "edges": [
+        {"target": "gdp", "type": "VERIFIES", "weight": 1.5, "grounded": false},
+        {"target": "corporations", "type": "EXPRESSES", "weight": 1.2, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "corporations", "label": "Corporations", "edges": [
+        {"target": "employment", "type": "EXPRESSES", "weight": 1.0, "grounded": false},
+        {"target": "stock_market", "type": "EXPRESSES", "weight": 1.5, "grounded": false},
+        {"target": "supply_chain", "type": "BOUNDS", "weight": 1.0, "grounded": false},
+        {"target": "regulation", "type": "REMOVES", "weight": 0.8, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "stock_market", "label": "Stock Market", "edges": [
+        {"target": "gdp", "type": "MIRRORS", "weight": 0.8, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "tax_revenue", "label": "Tax Revenue", "edges": [
+        {"target": "regulation", "type": "EXPRESSES", "weight": 1.0, "grounded": false},
+        {"target": "debt", "type": "REMOVES", "weight": 0.5, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "regulation", "label": "Government Regulation", "edges": [
+        {"target": "corporations", "type": "BOUNDS", "weight": 1.5, "grounded": false},
+        {"target": "banking", "type": "BOUNDS", "weight": 1.2, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "banking", "label": "Banking System", "edges": [
+        {"target": "fiat", "type": "EXPRESSES", "weight": 1.0, "grounded": false},
+        {"target": "housing", "type": "EXPRESSES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "housing", "label": "Housing Market", "edges": [
+        {"target": "gdp", "type": "VERIFIES", "weight": 0.8, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "supply_chain", "label": "Global Supply Chain", "edges": [
+        {"target": "commodities", "type": "INHERITS", "weight": 1.0, "grounded": false},
+        {"target": "employment", "type": "EXPRESSES", "weight": 0.8, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "commodities", "label": "Commodities", "edges": [
+        {"target": "supply_chain", "type": "BOUNDS", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "technology", "label": "Technology Sector", "edges": [
+        {"target": "corporations", "type": "VERIFIES", "weight": 1.0, "grounded": false},
+        {"target": "employment", "type": "REMOVES", "weight": 0.6, "grounded": false},
+        {"target": "gdp", "type": "EXPRESSES", "weight": 1.2, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "inequality", "label": "Income Inequality", "edges": [
+        {"target": "consumer_spending", "type": "REMOVES", "weight": 0.8, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "ideology", "label": "Free Market Ideology", "edges": [
+        {"target": "inequality", "type": "REMOVES", "weight": 1.0, "grounded": false},
+        {"target": "regulation", "type": "REMOVES", "weight": 1.2, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "wellbeing", "label": "Human Wellbeing", "edges": [], "activation": 0.0, "decay_rate": 0.1}
+    ]
+  }
+}

@@ -1,0 +1,80 @@
+{
+  "name": "China Geopolitics",
+  "description": "Topology of CCP power, economic growth-debt tension, tech independence, and demographic crisis",
+  "L2_graph": {
+    "nodes": [
+      {"id": "ccp", "label": "Chinese Communist Party", "edges": [
+        {"target": "surveillance", "type": "EXPRESSES", "weight": 1.5, "grounded": false},
+        {"target": "pla", "type": "EXPRESSES", "weight": 1.5, "grounded": false},
+        {"target": "economic_growth", "type": "SEEKS", "weight": 2.0, "grounded": false},
+        {"target": "social_credit", "type": "EXPRESSES", "weight": 1.2, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "economic_growth", "label": "Economic Growth", "edges": [
+        {"target": "property", "type": "EXPRESSES", "weight": 1.5, "grounded": false},
+        {"target": "manufacturing", "type": "INHERITS", "weight": 1.5, "grounded": false},
+        {"target": "debt_trap", "type": "MIRRORS", "weight": 1.2, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "debt_trap", "label": "Debt Accumulation", "edges": [
+        {"target": "economic_growth", "type": "MIRRORS", "weight": 1.2, "grounded": false},
+        {"target": "property", "type": "REMOVES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "belt_road", "label": "Belt and Road Initiative", "edges": [
+        {"target": "africa", "type": "EXPRESSES", "weight": 1.5, "grounded": false},
+        {"target": "debt_diplomacy", "type": "EXPRESSES", "weight": 1.2, "grounded": false},
+        {"target": "brics", "type": "VERIFIES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "taiwan", "label": "Taiwan", "edges": [
+        {"target": "pla", "type": "SEEKS", "weight": 2.0, "grounded": false},
+        {"target": "us_comp", "type": "BOUNDS", "weight": 2.0, "grounded": false},
+        {"target": "rare_earths", "type": "MIRRORS", "weight": 0.8, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "south_china_sea", "label": "South China Sea", "edges": [
+        {"target": "pla", "type": "EXPRESSES", "weight": 1.5, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "manufacturing", "label": "Manufacturing Base", "edges": [
+        {"target": "supply_chain", "type": "EXPRESSES", "weight": 2.0, "grounded": false},
+        {"target": "rare_earths", "type": "INHERITS", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "tech_independence", "label": "Tech Independence", "edges": [
+        {"target": "us_comp", "type": "REMOVES", "weight": 1.0, "grounded": false},
+        {"target": "manufacturing", "type": "INHERITS", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "pla", "label": "PLA (Military)", "edges": [
+        {"target": "south_china_sea", "type": "BOUNDS", "weight": 1.5, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "us_comp", "label": "US Competition", "edges": [
+        {"target": "tech_independence", "type": "BOUNDS", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "surveillance", "label": "Surveillance State", "edges": [
+        {"target": "social_credit", "type": "VERIFIES", "weight": 1.5, "grounded": false},
+        {"target": "hong_kong", "type": "BOUNDS", "weight": 1.2, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "social_credit", "label": "Social Credit System", "edges": [
+        {"target": "confucian", "type": "REMOVES", "weight": 0.8, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "demographic", "label": "Demographic Crisis", "edges": [
+        {"target": "economic_growth", "type": "REMOVES", "weight": 1.5, "grounded": false},
+        {"target": "manufacturing", "type": "REMOVES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "property", "label": "Property Market", "edges": [
+        {"target": "economic_growth", "type": "VERIFIES", "weight": 0.8, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "debt_diplomacy", "label": "Debt Diplomacy", "edges": [
+        {"target": "africa", "type": "BOUNDS", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "russia_alliance", "label": "Russia Alliance", "edges": [
+        {"target": "brics", "type": "EXPRESSES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "brics", "label": "BRICS", "edges": [
+        {"target": "us_comp", "type": "REMOVES", "weight": 0.8, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "africa", "label": "Africa Relations", "edges": [], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "rare_earths", "label": "Rare Earths Dominance", "edges": [
+        {"target": "us_comp", "type": "BOUNDS", "weight": 1.5, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "hong_kong", "label": "Hong Kong", "edges": [], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "confucian", "label": "Confucian Values", "edges": [], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "supply_chain", "label": "Global Supply Chain Control", "edges": [], "activation": 0.0, "decay_rate": 0.1}
+    ]
+  }
+}

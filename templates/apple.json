@@ -1,0 +1,69 @@
+{
+  "name": "Apple Inc.",
+  "description": "Topology of Apple's ecosystem, revenue dependency, innovation tension, and regulatory risk",
+  "L2_graph": {
+    "nodes": [
+      {"id": "iphone", "label": "iPhone", "edges": [
+        {"target": "services", "type": "EXPRESSES", "weight": 2.0, "grounded": false},
+        {"target": "app_store", "type": "EXPRESSES", "weight": 1.5, "grounded": false},
+        {"target": "chip_design", "type": "INHERITS", "weight": 1.5, "grounded": false},
+        {"target": "ecosystem", "type": "EXPRESSES", "weight": 2.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "services", "label": "Services Revenue", "edges": [
+        {"target": "app_store", "type": "INHERITS", "weight": 1.5, "grounded": false},
+        {"target": "brand", "type": "VERIFIES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "app_store", "label": "App Store", "edges": [
+        {"target": "dev_relations", "type": "BOUNDS", "weight": 1.5, "grounded": false},
+        {"target": "regulatory", "type": "SEEKS", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "privacy", "label": "Privacy Positioning", "edges": [
+        {"target": "brand", "type": "VERIFIES", "weight": 1.5, "grounded": false},
+        {"target": "ai_strategy", "type": "BOUNDS", "weight": 1.2, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "chip_design", "label": "Apple Silicon", "edges": [
+        {"target": "mac", "type": "EXPRESSES", "weight": 1.5, "grounded": false},
+        {"target": "ipad", "type": "EXPRESSES", "weight": 1.2, "grounded": false},
+        {"target": "ai_strategy", "type": "VERIFIES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "supply_chain", "label": "Supply Chain (China)", "edges": [
+        {"target": "iphone", "type": "VERIFIES", "weight": 1.5, "grounded": false},
+        {"target": "china_risk", "type": "MIRRORS", "weight": 1.2, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "brand", "label": "Brand Premium", "edges": [
+        {"target": "ecosystem", "type": "VERIFIES", "weight": 1.5, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "ecosystem", "label": "Ecosystem Lock-in", "edges": [
+        {"target": "services", "type": "EXPRESSES", "weight": 1.5, "grounded": false},
+        {"target": "regulatory", "type": "SEEKS", "weight": 0.8, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "china_risk", "label": "China Manufacturing Risk", "edges": [
+        {"target": "supply_chain", "type": "BOUNDS", "weight": 1.5, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "ai_strategy", "label": "AI Strategy", "edges": [
+        {"target": "privacy", "type": "REMOVES", "weight": 0.8, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "vision_pro", "label": "Vision Pro", "edges": [
+        {"target": "ecosystem", "type": "SEEKS", "weight": 1.0, "grounded": false},
+        {"target": "chip_design", "type": "INHERITS", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "mac", "label": "Mac", "edges": [
+        {"target": "ecosystem", "type": "VERIFIES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "ipad", "label": "iPad", "edges": [
+        {"target": "ecosystem", "type": "VERIFIES", "weight": 0.8, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "wearables", "label": "Wearables (Watch/AirPods)", "edges": [
+        {"target": "ecosystem", "type": "VERIFIES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "regulatory", "label": "Regulatory Risk", "edges": [
+        {"target": "app_store", "type": "REMOVES", "weight": 1.2, "grounded": false},
+        {"target": "ecosystem", "type": "REMOVES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "dev_relations", "label": "Developer Relations", "edges": [
+        {"target": "app_store", "type": "VERIFIES", "weight": 1.0, "grounded": false}
+      ], "activation": 0.0, "decay_rate": 0.1},
+      {"id": "innovation", "label": "Innovation Culture", "edges": [], "activation": 0.0, "decay_rate": 0.1}
+    ]
+  }
+}
