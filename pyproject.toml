@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tca"
+version = "0.1.0"
+description = "Topological Cognitive Architecture"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp>=1.0.0",
+    "httpx>=0.25.0",
+    "starlette>=0.27.0",
+    "uvicorn>=0.24.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["tca*", "api*", "tca_mcp*"]
