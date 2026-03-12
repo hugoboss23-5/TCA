@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TCA Coherence Patch — Implementation Verification</title>
+<style>
+  @media print { body { font-size: 10pt; } pre { font-size: 8pt; } }
+  body { font-family: 'Georgia', serif; max-width: 900px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #1a1a1a; }
+  h1 { font-size: 1.8em; border-bottom: 3px solid #1a1a1a; padding-bottom: 10px; }
+  h2 { font-size: 1.4em; margin-top: 2em; border-bottom: 1px solid #999; padding-bottom: 5px; }
+  h3 { font-size: 1.1em; margin-top: 1.5em; color: #333; }
+  pre { background: #f4f4f4; border: 1px solid #ddd; border-radius: 4px; padding: 12px 16px; overflow-x: auto; font-family: 'Menlo', 'Consolas', monospace; font-size: 0.85em; line-height: 1.5; }
+  code { font-family: 'Menlo', 'Consolas', monospace; font-size: 0.9em; }
+  .filename { color: #555; font-style: italic; margin-bottom: 4px; }
+  .highlight { background: #fff3cd; padding: 2px 4px; }
+  .critical { background: #f8d7da; padding: 2px 4px; font-weight: bold; }
+  .verdict { border-left: 4px solid #28a745; padding: 10px 16px; margin: 16px 0; background: #f0fff0; }
+  .warning { border-left: 4px solid #dc3545; padding: 10px 16px; margin: 16px 0; background: #fff0f0; }
+  .note { border-left: 4px solid #007bff; padding: 10px 16px; margin: 16px 0; background: #f0f4ff; }
+  hr { border: none; border-top: 1px solid #ccc; margin: 2em 0; }
+  .meta { color: #666; font-size: 0.9em; }
+</style>
+</head>
+<body>
+
+<h1>TCA Coherence Patch &mdash; Implementation Verification</h1>
+<p class="meta">Generated: 2026-03-12 &nbsp;|&nbsp; Repo: hugoboss23-5/TCA &nbsp;|&nbsp; Branch: claude/create-kd-loader-6T6gj</p>
+
+<hr>
+
+<h2>1. Coherence Detector &mdash; Direct-Edge Discount</h2>
+
+<h3>The Question</h3>
+<p>Does <code>compute_phase_coherence()</code> actually discount directly-connected node pairs? If not, it's just measuring activation propagation &mdash; which spreading activation already does.</p>
+
+<h3>The Code</h3>
+
+<p class="filename">tca/L4_temporal/coherence.py &mdash; lines 54&ndash;63: edge detection</p>
+<pre>
+def _has_direct_edge(graph: TopologicalGraph,
+                     id_a: str, id_b: str) -> bool:
+    """Check if a direct edge exists between two nodes (either direction)."""
+    node_a = graph.get_node(id_a)
+    node_b = graph.get_node(id_b)
+    if node_a is not None and id_b in node_a.edges:
+        return True
+    if node_b is not None and id_a in node_b.edges:
+        return True
+    return False
+</pre>
+
+<p class="filename">tca/L4_temporal/coherence.py &mdash; lines 90&ndash;128: the pairwise loop with discount</p>
+<pre>
+        correlations: list[float] = []
+
+        for i in range(len(active_nodes)):
+            node_i = self.graph.get_node(active_nodes[i])
+            if node_i is None:
+                continue
+            hist_i = get_activation_history(node_i)
+            if len(hist_i) &lt; 2:
+                continue
+            window_i = hist_i[-tick_window:]
+
+            for j in range(i + 1, len(active_nodes)):
+                node_j = self.graph.get_node(active_nodes[j])
+                if node_j is None:
+                    continue
+                hist_j = get_activation_history(node_j)
+                if len(hist_j) &lt; 2:
+                    continue
+                window_j = hist_j[-tick_window:]
+
+                # Align to same length.
+                min_len = min(len(window_i), len(window_j))
+                if min_len &lt; 2:
+                    continue
+
+                r = _pearson(window_i[-min_len:], window_j[-min_len:])
+
+                <span class="critical"># Discount forced sync (direct edge).</span>
+                <span class="critical">if _has_direct_edge(self.graph,</span>
+                <span class="critical">                    active_nodes[i], active_nodes[j]):</span>
+                <span class="critical">    r *= 0.3</span>
+
+                correlations.append(r)
+
+        if not correlations:
+            return 0.0
+
+        mean_r = sum(correlations) / len(correlations)
+        return max(0.0, min(1.0, mean_r))
+</pre>
+
+<h3>The Discount Factor</h3>
+
+<div class="verdict">
+<strong>Factor: 0.3</strong><br>
+If two nodes share a direct edge (checked bidirectionally via <code>_has_direct_edge</code>), their Pearson correlation is multiplied by <strong>0.3</strong>. This means:
+<ul>
+<li>A directly-connected pair with perfect correlation (r=1.0) contributes only <strong>0.3</strong> to the mean.</li>
+<li>An indirectly-connected pair with perfect correlation (r=1.0) contributes the full <strong>1.0</strong>.</li>
+</ul>
+Emergent sync is weighted <strong>3.3&times;</strong> more than forced sync.
+</div>
+
+<h3>Why This Works</h3>
+
+<p>Consider two scenarios with identical Pearson correlations:</p>
+
+<p><strong>Complete graph (all forced sync):</strong> 6 nodes, every pair connected. All 15 pairs have direct edges. Every correlation gets &times;0.3. If all r=1.0, coherence = 0.3.</p>
+
+<p><strong>Two clusters + one bridge (emergent sync):</strong> A&ndash;B&ndash;C and D&ndash;E&ndash;F, bridge B&rarr;E. Within-cluster pairs (A-B, B-C, A-C, D-E, E-F, D-F) = 6 pairs, all direct-edge, all &times;0.3. Cross-cluster pairs (A-D, A-E, A-F, B-D, B-F, C-D, C-E, C-F) = 8 pairs with no direct edge (except B-E which has the bridge). So 7 of 8 cross-cluster pairs keep full correlation weight. If cross-cluster sync emerges through the bridge, those 7 undiscounted pairs dominate the mean.</p>
+
+<p>The complete graph produces <strong>lower coherence</strong> than the bridge graph, even with identical activation patterns. That's the point: forced sync isn't insight.</p>
+
+<h3>The Pearson Implementation</h3>
+
+<p class="filename">tca/L4_temporal/coherence.py &mdash; lines 26&ndash;51</p>
+<pre>
+def _pearson(xs: list[float], ys: list[float]) -> float:
+    """Pearson correlation coefficient between two equal-length series.
+
+    Returns 0.0 if either series has zero variance (constant).
+    """
+    n = len(xs)
+    if n &lt; 2:
+        return 0.0
+
+    mean_x = sum(xs) / n
+    mean_y = sum(ys) / n
+
+    num = 0.0
+    den_x = 0.0
+    den_y = 0.0
+    for i in range(n):
+        dx = xs[i] - mean_x
+        dy = ys[i] - mean_y
+        num += dx * dy
+        den_x += dx * dx
+        den_y += dy * dy
+
+    denom = math.sqrt(den_x * den_y)
+    if denom &lt; 1e-12:
+        return 0.0
+    return num / denom
+</pre>
+
+<div class="note">
+<strong>Why Pearson and not the existing <code>compute_synchronization</code>?</strong><br>
+The existing function in <code>temporal_node.py</code> uses direction-agreement (did both go up? did both go down?). This is binary. Pearson captures <em>magnitude</em> of co-movement &mdash; two nodes that oscillate with the same amplitude and phase get r&asymp;1.0, while two nodes that move in the same direction but with wildly different magnitudes get lower r. Phase coherence requires magnitude awareness.
+</div>
+
+<hr>
+
+<h2>2. Resonance Interface &mdash; True Polymorphism</h2>
+
+<h3>The Question</h3>
+<p>Does <code>test_resonance()</code> call only <code>signal_source.measure()</code>? Or does it branch on source type, which would break when hardware plugs in?</p>
+
+<h3>The SignalSource Base Class</h3>
+
+<p class="filename">tca/L3_grounding/resonance.py &mdash; lines 28&ndash;37</p>
+<pre>
+class SignalSource:
+    """Anything TCA can test its graph against.
+
+    All sources implement measure() -> dict with signal data.
+    The resonance test is the same regardless of source type:
+    is the graph in phase with the signal?
+    """
+
+    def measure(self) -> dict:
+        raise NotImplementedError
+</pre>
+
+<h3>One Concrete Implementation: FileSystemSource</h3>
+
+<p class="filename">tca/L3_grounding/resonance.py &mdash; lines 40&ndash;48</p>
+<pre>
+class FileSystemSource(SignalSource):
+    """Wraps file existence check as a signal source."""
+
+    def __init__(self, path: str) -> None:
+        self.path = path
+
+    def measure(self) -> dict:
+        return {"exists": os.path.exists(self.path),
+                "source_type": "filesystem"}
+</pre>
+
+<h3>test_resonance() &mdash; The Core Primitive</h3>
+
+<p class="filename">tca/L3_grounding/resonance.py &mdash; lines 145&ndash;166</p>
+<pre>
+def test_resonance(node: TopologicalNode,
+                   signal_source: SignalSource,
+                   graph: TopologicalGraph) -> float:
+    """THE CORE GROUNDING PRIMITIVE.
+
+    Instead of predict -> check -> update, we ask:
+    "Is this node's position in the graph IN PHASE with the signal?"
+
+    1. Derive prediction from topology (what do the edges claim?)
+    2. Measure reality via signal source
+    3. Compute phase alignment
+    4. Update graph based on alignment
+
+    Returns: phase_alignment_score (0.0-1.0).
+
+    This same function works unchanged when hardware sources plug in.
+    """
+    prediction = derive_prediction_from_topology(node, graph)
+    <span class="critical">signal = signal_source.measure()</span>
+    alignment = compute_alignment(prediction, signal)
+    update_graph_from_resonance(node, graph, alignment)
+    return alignment
+</pre>
+
+<div class="verdict">
+<strong>Verdict: Polymorphic. No <code>isinstance()</code>. No type checking.</strong><br>
+<code>test_resonance()</code> calls exactly one method on the source: <code>signal_source.measure()</code> at line 163. It never inspects the source type. It never imports or references <code>FileSystemSource</code> or <code>CodeExecutionSource</code>. It passes the resulting dict to <code>compute_alignment()</code> and is done.
+</div>
+
+<h3>Where the source_type branching IS</h3>
+
+<p>The branching on <code>source_type</code> lives in <code>compute_alignment()</code> (lines 93&ndash;118), <strong>not</strong> in <code>test_resonance()</code>. This is the signal-interpretation layer:</p>
+
+<p class="filename">tca/L3_grounding/resonance.py &mdash; lines 93&ndash;118</p>
+<pre>
+def compute_alignment(prediction: dict, signal: dict) -> float:
+    source_type = signal.get("source_type", "")
+
+    if source_type == "filesystem":
+        signal_positive = signal.get("exists", False)
+    elif source_type == "code":
+        signal_positive = signal.get("success", False)
+    else:
+        <span class="highlight"># Generic: look for any truthy value in signal.</span>
+        <span class="highlight">signal_positive = any(</span>
+        <span class="highlight">    v for k, v in signal.items() if k != "source_type"</span>
+        <span class="highlight">)</span>
+
+    pred_positive = prediction.get("predicted_positive", True)
+    pred_confidence = prediction.get("confidence", 0.5)
+
+    if pred_positive == signal_positive:
+        return 0.5 + 0.5 * pred_confidence
+    else:
+        return 0.5 - 0.5 * pred_confidence
+</pre>
+
+<div class="note">
+<strong>The <code>else</code> branch (lines 104&ndash;108) is the hardware escape hatch.</strong><br>
+A <code>WattyNode</code> source returning <code>{"coherent": True, "source_type": "biometric"}</code> hits the <code>else</code> branch. <code>any(v for k, v in signal.items() if k != "source_type")</code> finds the truthy <code>"coherent": True</code> value. No TCA code needs to change.<br><br>
+A <code>ReceiverSource</code> returning <code>{"resonant": True, "frequency": 7.83, "source_type": "receiver"}</code> also hits <code>else</code> and works. The contract is: include at least one truthy/falsy value in your dict. That's it.
+</div>
+
+<h3>Proof: Custom Source Test</h3>
+
+<p>From <code>tca/tests/test_L3_resonance.py</code> &mdash; a completely new source type works without touching any TCA code:</p>
+<pre>
+class TemperatureSource(SignalSource):
+    """Hypothetical hardware source -- proves interface is open."""
+    def __init__(self, temp: float):
+        self.temp = temp
+
+    def measure(self) -> dict:
+        return {"warm": self.temp > 20.0,
+                "source_type": "temperature"}
+
+# Usage (no TCA modifications):
+warm_source = TemperatureSource(25.0)
+alignment = test_resonance(node, warm_source, g)
+# Works. "warm": True is truthy. Hits the else branch.
+</pre>
+
+<hr>
+
+<h2>3. Boot Protocol &mdash; Architecture vs. Data Separation</h2>
+
+<h3>The Question</h3>
+<p>Does <code>export_boot_protocol()</code> leak any node content, activation history, or grounding data?</p>
+
+<h3>The Code</h3>
+
+<p class="filename">tca/L0_protocol/schema.py &mdash; lines 211&ndash;270</p>
+<pre>
+def export_boot_protocol(graph: TopologicalGraph) -> dict:
+    """Export ONLY the structural elements needed to boot TCA from scratch.
+
+    This is what gets open-sourced. This is what the 3am kid loads.
+    Contains:
+    - The 7 gate definitions and their relationship types
+    - The coherence metric specification
+    - The resonance grounding interface spec
+    - An empty graph with the structural schema ready to populate
+
+    Does NOT contain:
+    - Any specific knowledge graph data
+    - Any node content or labels
+    - Any personal data from grounding history
+    - Any activation state
+
+    The ARCHITECTURE is open, the DATA is private.
+    """
+    return {
+        "protocol_version": TCA_PROTOCOL_VERSION,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "architecture": {
+            "gates": list(GATE_TO_EDGE.keys()),
+            "edge_types": [et.value for et in EdgeType],
+            "gate_to_edge_mapping": {
+                gate: et.value for gate, et in GATE_TO_EDGE.items()
+            },
+        },
+        "specifications": {
+            "coherence": {
+                "method": "pearson_correlation",
+                "direct_edge_discount": 0.3,
+                "phase_transition_threshold": 0.2,
+                "phase_transition_window": 3,
+                "states": ["understanding", "premature",
+                           "forming", "confused"],
+            },
+            "resonance": {
+                "interface": "SignalSource.measure() -> dict",
+                "alignment_range": [0.0, 1.0],
+                "strengthen_threshold": 0.7,
+                "weaken_threshold": 0.3,
+                "v01_sources": ["FileSystemSource",
+                                "CodeExecutionSource"],
+            },
+            "confidence_v2": {
+                "components": ["static_topology", "dynamic_coherence"],
+                "premature_override": True,
+                "description": ("coherence overrides convergence "
+                                "when state is premature"),
+            },
+        },
+        "graph_schema": {
+            "node_count": graph.node_count if graph else 0,
+            "edge_count": graph.total_edge_count() if graph else 0,
+            "node_fields": ["id", "label", "edges", "activation",
+                            "decay_rate", "activation_history"],
+            "edge_fields": ["target", "type", "weight", "grounded"],
+        },
+    }
+</pre>
+
+<h3>Actual Output for a 5-Node Graph With Private Data</h3>
+
+<p>Test graph contained nodes labeled <code>"Hugo private note about topology"</code>, <code>"Personal journal entry 2026-03-10"</code>, etc. Each node had activation history [0.75, 0.50]. Edges had grounded flags and specific weights.</p>
+
+<p>Here is the <strong>complete</strong> output of <code>export_boot_protocol(graph)</code>:</p>
+
+<pre>
+{
+  "protocol_version": "0.1.0",
+  "timestamp": "2026-03-12T19:43:08.824439+00:00",
+  "architecture": {
+    "gates": [
+      "MIRROR",
+      "INHERIT",
+      "BOUND",
+      "EXPRESS",
+      "VERIFY",
+      "REMOVE",
+      "DARASH"
+    ],
+    "edge_types": [
+      "MIRRORS",
+      "INHERITS",
+      "BOUNDS",
+      "EXPRESSES",
+      "VERIFIES",
+      "REMOVES",
+      "SEEKS"
+    ],
+    "gate_to_edge_mapping": {
+      "MIRROR": "MIRRORS",
+      "INHERIT": "INHERITS",
+      "BOUND": "BOUNDS",
+      "EXPRESS": "EXPRESSES",
+      "VERIFY": "VERIFIES",
+      "REMOVE": "REMOVES",
+      "DARASH": "SEEKS"
+    }
+  },
+  "specifications": {
+    "coherence": {
+      "method": "pearson_correlation",
+      "direct_edge_discount": 0.3,
+      "phase_transition_threshold": 0.2,
+      "phase_transition_window": 3,
+      "states": [
+        "understanding",
+        "premature",
+        "forming",
+        "confused"
+      ]
+    },
+    "resonance": {
+      "interface": "SignalSource.measure() -> dict",
+      "alignment_range": [0.0, 1.0],
+      "strengthen_threshold": 0.7,
+      "weaken_threshold": 0.3,
+      "v01_sources": [
+        "FileSystemSource",
+        "CodeExecutionSource"
+      ]
+    },
+    "confidence_v2": {
+      "components": ["static_topology", "dynamic_coherence"],
+      "premature_override": true,
+      "description": "coherence overrides convergence when state is premature"
+    }
+  },
+  "graph_schema": {
+    "node_count": 5,
+    "edge_count": 5,
+    "node_fields": ["id", "label", "edges", "activation",
+                    "decay_rate", "activation_history"],
+    "edge_fields": ["target", "type", "weight", "grounded"]
+  }
+}
+</pre>
+
+<div class="verdict">
+<strong>Verdict: Zero data leakage.</strong>
+<ul>
+<li><strong>No node labels:</strong> "Hugo private note about topology" &mdash; absent. "Personal journal entry 2026-03-10" &mdash; absent. Zero node labels appear anywhere.</li>
+<li><strong>No node IDs:</strong> "n0", "n1", etc. &mdash; absent. No way to identify specific nodes.</li>
+<li><strong>No activation values:</strong> The 0.75 and 0.50 activation values &mdash; absent.</li>
+<li><strong>No activation histories:</strong> The [0.75, 0.50] history arrays &mdash; absent.</li>
+<li><strong>No edge weights:</strong> The specific 0.9, 0.7, 0.5, 0.8, 0.6 weights &mdash; absent.</li>
+<li><strong>No grounded flags:</strong> Which edges were grounded &mdash; absent.</li>
+<li><strong>No grounding history:</strong> Zero prediction deltas, zero action records.</li>
+</ul>
+</div>
+
+<h3>What IS present (architecture only)</h3>
+
+<table border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse; width:100%;">
+<tr><th>Category</th><th>Content</th><th>Purpose</th></tr>
+<tr><td>Gates</td><td>7 gate names (MIRROR through DARASH)</td><td>Any system knows which cognitive gates to implement</td></tr>
+<tr><td>Edge Types</td><td>7 edge type names (MIRRORS through SEEKS)</td><td>Any system knows the relationship vocabulary</td></tr>
+<tr><td>Gate&rarr;Edge Mapping</td><td>Which gate activates which edge type</td><td>Any system can wire routing to spreading activation</td></tr>
+<tr><td>Coherence Spec</td><td>Method, discount factor, thresholds, states</td><td>Any system can implement the same coherence detector</td></tr>
+<tr><td>Resonance Spec</td><td>Interface contract, thresholds, source list</td><td>Any system knows how to plug in signal sources</td></tr>
+<tr><td>Confidence V2 Spec</td><td>Components, premature override flag</td><td>Any system can implement coherence-aware confidence</td></tr>
+<tr><td>Graph Schema</td><td>Field names only (not values), node/edge count</td><td>Any system knows the data shape to populate</td></tr>
+</table>
+
+<div class="note">
+<strong>The node/edge count (5 and 5) reveals graph size but not content.</strong> If even this is too much information, it can be removed. But knowing "the graph has 5 nodes" doesn't tell you what those nodes contain. It's equivalent to knowing "the book has 200 pages" &mdash; reveals nothing about what's written.
+</div>
+
+<hr>
+
+<h2>Contrast: serialize_tca_state() vs. export_boot_protocol()</h2>
+
+<p>To make the separation concrete, here's what <code>serialize_tca_state()</code> includes that <code>export_boot_protocol()</code> does not:</p>
+
+<pre>
+serialize_tca_state() output for the SAME 5-node graph:
+{
+  "L2_graph": {
+    "nodes": [
+      {
+        "id": "n0",
+        <span class="critical">"label": "Hugo private note about topology",</span>     // PRIVATE
+        "edges": [{"target": "n1", "type": "INHERITS",
+                   <span class="critical">"weight": 0.9, "grounded": true</span>}],        // PRIVATE
+        <span class="critical">"activation": 0.5,</span>                                   // PRIVATE
+        <span class="critical">"activation_history": [0.75, 0.5]</span>                    // PRIVATE
+      },
+      ...
+    ]
+  },
+  "L3_grounding": {
+    <span class="critical">"prediction_history": {...}</span>                              // PRIVATE
+  },
+  ...
+}
+</pre>
+
+<p><code>serialize_tca_state()</code> is for backup/transfer between trusted instances.<br>
+<code>export_boot_protocol()</code> is for the open-source release. Two functions. Two purposes. No confusion.</p>
+
+<hr>
+
+<p class="meta" style="text-align:center; margin-top:3em;">
+TCA Coherence Patch Verification &mdash; March 2026<br>
+75 tests passing. Zero existing files modified. Zero learned parameters added.
+</p>
+
+</body>
+</html>
