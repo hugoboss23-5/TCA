@@ -80,9 +80,16 @@ def _parse_text_to_graph(description: str) -> dict:
     sentences = [s.strip() for s in sentences if s.strip()]
 
     entity_mentions = {}  # nid -> label
+    _merge_map = {}  # old_nid -> new_nid (for deduplication)
 
     def _to_id(label: str) -> str:
         return re.sub(r'[^a-z0-9]+', '_', label.lower()).strip('_')
+
+    def _resolve_nid(nid: str) -> str:
+        """Follow merge chain to find canonical nid."""
+        while nid in _merge_map:
+            nid = _merge_map[nid]
+        return nid
 
     def _add_entity(label: str) -> str:
         label = label.strip()
@@ -95,8 +102,28 @@ def _parse_text_to_graph(description: str) -> dict:
         nid = _to_id(label)
         if not nid or len(nid) < 2:
             return ""
-        if nid not in entity_mentions:
-            entity_mentions[nid] = label
+        # Check if already merged into something else.
+        nid = _resolve_nid(nid)
+        if nid in entity_mentions:
+            return nid
+        # Substring deduplication: check against existing entities.
+        # If new nid contains an existing nid (or vice versa), merge.
+        for existing_nid in list(entity_mentions.keys()):
+            # Only merge if the shorter nid is at least 4 chars (avoid
+            # overly generic matches like "roi" matching "battery_roi").
+            if existing_nid in nid and len(existing_nid) >= 4:
+                # New entity is a superset of existing → map to existing.
+                _merge_map[nid] = existing_nid
+                return existing_nid
+            if nid in existing_nid and len(nid) >= 4 and '_' in nid:
+                # Existing entity is a superset of new → absorb existing.
+                # Only when new entity is multi-word (has underscore) to prevent
+                # single words like "solar" absorbing "solar_production".
+                entity_mentions.pop(existing_nid)
+                entity_mentions[nid] = label
+                _merge_map[existing_nid] = nid
+                return nid
+        entity_mentions[nid] = label
         return nid
 
     edges = []
@@ -116,6 +143,7 @@ def _parse_text_to_graph(description: str) -> dict:
         'further', 'once', 'here', 'there', 'where', 'why', 'how', 'been',
         'being', 'having', 'doing', 'those', 'these', 'same', 'own',
         'see', 'sees', 'seen', 'get', 'gets', 'got', 'become', 'becomes',
+        'whether', 'because', 'since', 'unless', 'until', 'though',
     ])
 
     # Words that are never entities on their own.
@@ -147,6 +175,39 @@ def _parse_text_to_graph(description: str) -> dict:
         'reports', 'report', 'answers', 'answer', 'influences', 'influence',
         'affects', 'affect', 'supports', 'support', 'funds', 'fund',
         'billed', 'bill', 'using', 'used', 'use',
+        'determines', 'determine', 'forces', 'force', 'destroys', 'destroy',
+        'earns', 'earn', 'shortens', 'shorten', 'targets', 'target',
+        'captures', 'capture', 'coincides', 'coincide', 'represents', 'represent',
+        'varies', 'vary', 'discharges', 'discharge', 'covers', 'cover',
+        'means', 'mean', 'allows', 'allow', 'runs', 'run', 'sets', 'set',
+        'adds', 'add', 'pays', 'pay', 'saves', 'save', 'charges', 'charge',
+        'finds', 'find', 'helps', 'help', 'works', 'work', 'starts', 'start',
+        'turns', 'turn', 'puts', 'put', 'moves', 'move', 'calls', 'call',
+        'goes', 'go', 'comes', 'come', 'knows', 'know', 'says', 'say',
+        'tells', 'tell', 'holds', 'hold', 'stands', 'stand', 'sits', 'sit',
+        'falls', 'fall', 'drops', 'drop', 'raises', 'raise', 'lowers', 'lower',
+        'sends', 'send', 'brings', 'bring', 'leaves', 'leave',
+        'divided', 'captured', 'billed', 'represented',
+    ])
+
+    # Auxiliary verbs — NEVER appear inside a noun phrase.
+    _AUX_VERBS = frozenset([
+        'is', 'are', 'was', 'were', 'has', 'have', 'had',
+        'can', 'could', 'will', 'would', 'shall', 'should',
+        'may', 'might', 'do', 'does', 'did',
+    ])
+
+    # Gerund/participle forms that are actually nouns (allowlist).
+    _NOUN_GERUNDS = frozenset([
+        'sizing', 'pricing', 'metering', 'shaving', 'cycling', 'billing',
+        'building', 'rating', 'loading', 'cooling', 'heating', 'lighting',
+        'roofing', 'wiring', 'piping', 'framing', 'grading', 'zoning',
+        'parking', 'staffing', 'funding', 'branding', 'marketing',
+        'engineering', 'manufacturing', 'computing', 'networking',
+        'banking', 'trading', 'mining', 'logging', 'training', 'testing',
+        'housing', 'shipping', 'processing', 'modeling', 'planning',
+        'scheduling', 'dispatching', 'forecasting', 'monitoring',
+        'storage', 'degradation', 'consumption',  # not -ing but included
     ])
 
     # Relationship verbs used to split sentences into subject/object.
@@ -182,10 +243,15 @@ def _parse_text_to_graph(description: str) -> dict:
         re.IGNORECASE
     )
 
+    def _is_leading_gerund(word: str) -> bool:
+        """Check if a word is a verb gerund (not a noun-gerund)."""
+        w = word.lower()
+        return (w.endswith('ing') or w.endswith('ed')) and w not in _NOUN_GERUNDS
+
     def _clean_noun_phrase(phrase: str) -> str:
         """Clean a noun phrase: strip function words from edges, limit length."""
         phrase = phrase.strip(' ,;:')
-        # Strip leading words: stop words, junk words, AND verbs.
+        # Strip leading words: stop words, junk words, verbs, AND verb gerunds.
         # Strip trailing words: stop words, junk words, trailing adjectives
         # (not verbs — "support", "control" etc. are often nouns at end).
         changed = True
@@ -194,13 +260,20 @@ def _parse_text_to_graph(description: str) -> dict:
             words = phrase.split()
             if not words:
                 break
-            if words[0].lower() in _STOP_WORDS | _JUNK_WORDS | _VERBS:
+            w0 = words[0].lower()
+            if w0 in _STOP_WORDS | _JUNK_WORDS | _VERBS or _is_leading_gerund(w0):
                 phrase = ' '.join(words[1:])
                 changed = True
             words = phrase.split()
-            if words and words[-1].lower() in _STOP_WORDS | _JUNK_WORDS | _TRAILING_ADJ:
-                phrase = ' '.join(words[:-1])
-                changed = True
+            if words:
+                tail = words[-1].lower()
+                if tail in _STOP_WORDS | _JUNK_WORDS | _TRAILING_ADJ:
+                    phrase = ' '.join(words[:-1])
+                    changed = True
+                # Also strip trailing conjugated verbs (-s/-ed forms).
+                elif tail in _VERBS and (tail.endswith('s') or tail.endswith('ed')):
+                    phrase = ' '.join(words[:-1])
+                    changed = True
         # Limit to max 4 words.
         words = phrase.split()
         if len(words) > 4:
@@ -212,7 +285,7 @@ def _parse_text_to_graph(description: str) -> dict:
         parts = re.split(
             r'\s*(?:,|;)\s*'
             r'|\s+(?:and|or|but|with|who|which|that|while|although|however|yet'
-            r'|for|during|on|at|in|by|from|into|through|about|against)\s+',
+            r'|for|during|on|at|in|by|from|into|through|about|against|of|to)\s+',
             text, flags=re.IGNORECASE
         )
         return [p.strip() for p in parts if p.strip()]
@@ -257,8 +330,13 @@ def _parse_text_to_graph(description: str) -> dict:
         )
         for c in cap_extended:
             c = _clean_noun_phrase(c)
-            if c and _is_valid_entity(c) and len(c) > 2:
-                results.append(c)
+            if not c or not _is_valid_entity(c) or len(c) <= 2:
+                continue
+            # Skip if internal words contain verbs/auxiliaries (greedy capture).
+            c_words = c.lower().split()
+            if len(c_words) > 1 and any(w in _AUX_VERBS | _VERBS for w in c_words[1:]):
+                continue
+            results.append(c)
 
         # 5. Known domain terms (from frequency analysis) in this clause.
         clause_lower = clean.lower()
@@ -273,6 +351,9 @@ def _parse_text_to_graph(description: str) -> dict:
         'catastrophic', 'aggressive', 'missed', 'highest', 'lowest',
         'commercial', 'direct', 'indirect', 'critical', 'major', 'minor',
         'significant', 'total', 'partial', 'full', 'empty', 'open', 'closed',
+        'profitable', 'optimal', 'conservative', 'annual', 'single',
+        'uncertain', 'simultaneous', 'available', 'typical', 'maximum',
+        'minimum', 'average', 'potential', 'actual', 'expected',
     ])
 
     def _is_valid_entity(phrase: str) -> bool:
@@ -292,6 +373,30 @@ def _parse_text_to_graph(description: str) -> dict:
         # Starts with a common verb (false positive).
         if words[0] in _VERBS:
             return False
+        # Starts with a gerund/participle that isn't a known noun-gerund.
+        if (words[0].endswith('ing') or words[0].endswith('ed')) \
+                and words[0] not in _NOUN_GERUNDS:
+            return False
+        # Contains an auxiliary verb internally → it's a clause, not a noun phrase.
+        # "demand charges can represent" → has "can" at position 2
+        if len(words) > 1:
+            for w in words[1:]:
+                if w in _AUX_VERBS:
+                    return False
+        # Internal verb (positions 1 to n-2) → it's a clause.
+        # "arbitrage shortens battery life" → "shortens" at position 1
+        if len(words) >= 3:
+            for w in words[1:-1]:
+                if w in _VERBS:
+                    return False
+        # Trailing verb detection.
+        # For 3+ word phrases: reject if trailing word is in _VERBS (any form).
+        #   "load peaks coincide" → "coincide" in _VERBS → reject.
+        # For 2-word phrases: only reject conjugated forms (-s/-ed) to preserve
+        #   noun uses like "Customer Support" where "support" is in _VERBS.
+        if len(words) > 1 and words[-1] in _VERBS:
+            if len(words) >= 3 or words[-1].endswith('s') or words[-1].endswith('ed'):
+                return False
         # Ends with a bare adjective (no noun after it).
         if words[-1] in _TRAILING_ADJ:
             return False
@@ -302,6 +407,11 @@ def _parse_text_to_graph(description: str) -> dict:
         if len(words) == 1 and words[0] in (
             'load', 'generation', 'rate', 'demand', 'energy', 'net',
             'company', 'organization', 'system', 'structure', 'process',
+            'solar', 'battery', 'building', 'season', 'peaks', 'peak',
+            'cost', 'value', 'size', 'capacity', 'power', 'output',
+            'input', 'goal', 'plan', 'budget', 'revenue', 'savings',
+            'model', 'data', 'level', 'interval', 'period', 'percent',
+            'result', 'impact', 'effect', 'factor', 'rule', 'clause',
         ):
             return False
         return True
@@ -444,6 +554,11 @@ def _parse_text_to_graph(description: str) -> dict:
                 "type": edge_type,
                 "weight": 1.0,
             })
+
+    # Remap edges through merge map.
+    for edge in edges:
+        edge["source"] = _resolve_nid(edge["source"])
+        edge["target"] = _resolve_nid(edge["target"])
 
     # Build node list.
     nodes = [{"id": nid, "label": label} for nid, label in entity_mentions.items()]
