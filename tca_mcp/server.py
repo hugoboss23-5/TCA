@@ -311,11 +311,34 @@ sse = SseServerTransport("/messages/")
 
 
 async def _app(scope, receive, send):
-    """Raw ASGI app with path routing for SSE and POST."""
+    """Raw ASGI app with path routing for SSE and POST, CORS enabled."""
     path = scope.get("path", "")
+    if scope["type"] == "lifespan":
+        return
     if scope["type"] == "http":
+        # CORS preflight
+        if scope.get("method") == "OPTIONS":
+            headers = [
+                (b"access-control-allow-origin", b"*"),
+                (b"access-control-allow-methods", b"GET, POST, OPTIONS"),
+                (b"access-control-allow-headers", b"*"),
+                (b"content-length", b"0"),
+            ]
+            await send({"type": "http.response.start", "status": 200, "headers": headers})
+            await send({"type": "http.response.body", "body": b""})
+            return
+        # Inject CORS headers into all responses
+        original_send = send
+        async def cors_send(message):
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                headers.append((b"access-control-allow-origin", b"*"))
+                headers.append((b"access-control-allow-methods", b"GET, POST, OPTIONS"))
+                headers.append((b"access-control-allow-headers", b"*"))
+                message["headers"] = headers
+            await original_send(message)
         if path == "/sse":
-            async with sse.connect_sse(scope, receive, send) as streams:
+            async with sse.connect_sse(scope, receive, cors_send) as streams:
                 await server.run(
                     streams[0],
                     streams[1],
@@ -323,9 +346,8 @@ async def _app(scope, receive, send):
                 )
             return
         if path.startswith("/messages"):
-            await sse.handle_post_message(scope, receive, send)
+            await sse.handle_post_message(scope, receive, cors_send)
             return
-
     from starlette.responses import Response
     response = Response("Not Found", status_code=404)
     await response(scope, receive, send)
