@@ -24,7 +24,7 @@ server = Server("tca")
 # Verbs/phrases that map to edge types.
 _EDGE_PATTERNS = {
     "BOUNDS": [
-        r"(?:controls?|constrains?|limits?|regulates?|governs?|manages?|oversees?|restricts?)",
+        r"(?:controls?|constrains?|limits?|regulates?|governs?|manages?|oversees?|restricts?|bounds?)",
         r"(?:reports?\s+to|accountable\s+to|answers?\s+to|under)",
         r"(?:has\s+(?:authority|power|control)\s+over)",
     ],
@@ -70,15 +70,16 @@ def _parse_text_to_graph(description: str) -> dict:
 
     Strategy:
     1. Split into sentences.
-    2. Extract noun phrases as candidate nodes.
-    3. Detect relationship verbs to determine edge types.
-    4. Build graph.
+    2. Extract noun phrases from both sides of relationship verbs.
+    3. Extract capitalized phrases, quoted terms, "X and Y" lists.
+    4. Discover lowercase domain terms via frequency analysis.
+    5. Detect relationship verbs to determine edge types.
+    6. Build graph.
     """
     sentences = re.split(r'[.!?]+', description)
     sentences = [s.strip() for s in sentences if s.strip()]
 
-    # Extract entities: capitalized phrases, quoted terms, or noun-like chunks.
-    entity_mentions = {}  # label -> id
+    entity_mentions = {}  # nid -> label
 
     def _to_id(label: str) -> str:
         return re.sub(r'[^a-z0-9]+', '_', label.lower()).strip('_')
@@ -92,11 +93,10 @@ def _parse_text_to_graph(description: str) -> dict:
         if not label:
             return ""
         nid = _to_id(label)
-        if not nid:
+        if not nid or len(nid) < 2:
             return ""
         if nid not in entity_mentions:
-            # Prefer capitalized version of the label.
-            entity_mentions[nid] = label[0].upper() + label[1:] if label else label
+            entity_mentions[nid] = label
         return nid
 
     edges = []
@@ -116,65 +116,294 @@ def _parse_text_to_graph(description: str) -> dict:
         'further', 'once', 'here', 'there', 'where', 'why', 'how', 'been',
         'being', 'having', 'doing', 'those', 'these', 'same', 'own',
         'see', 'sees', 'seen', 'get', 'gets', 'got', 'become', 'becomes',
-        'problems', 'problem', 'issues', 'issue', 'things', 'thing',
-        'way', 'ways', 'lot', 'lots', 'kind', 'type', 'part', 'parts',
-        'company', 'organization', 'system', 'structure', 'process',
-        'direct', 'directly', 'new', 'old', 'big', 'small', 'good', 'bad',
     ])
 
-    # Junk phrases to reject.
-    _JUNK_PATTERNS = re.compile(
-        r'\b(with\s+a|but\s|sees?\s|problems?\b|priorities\b|feedback\s+loop)',
+    # Words that are never entities on their own.
+    _JUNK_WORDS = frozenset([
+        'problems', 'problem', 'issues', 'issue', 'things', 'thing',
+        'way', 'ways', 'lot', 'lots', 'kind', 'type', 'part', 'parts',
+        'direct', 'directly', 'new', 'old', 'big', 'small', 'good', 'bad',
+        'not', 'both', 'simultaneously', 'highest', 'hours', 'priorities',
+    ])
+
+    # Common verbs to exclude from noun phrases.
+    _VERBS = frozenset([
+        'controls', 'control', 'manages', 'manage', 'builds', 'build',
+        'sees', 'see', 'has', 'have', 'had', 'gets', 'get', 'does', 'do',
+        'makes', 'make', 'takes', 'take', 'gives', 'give', 'keeps', 'keep',
+        'is', 'are', 'was', 'were', 'be', 'been', 'being',
+        'performs', 'perform', 'can', 'cannot', 'may', 'might',
+        'produces', 'produce', 'creates', 'create', 'drives', 'drive',
+        'generates', 'generate', 'leads', 'lead', 'causes', 'cause',
+        'blocks', 'block', 'prevents', 'prevent', 'enables', 'enable',
+        'seeks', 'seek', 'wants', 'want', 'needs', 'need',
+        'proves', 'prove', 'confirms', 'confirm', 'shows', 'show',
+        'competes', 'compete', 'opposes', 'oppose', 'contradicts', 'contradict',
+        'reduces', 'reduce', 'increases', 'increase', 'offsets', 'offset',
+        'depends', 'depend', 'relies', 'rely', 'requires', 'require',
+        'mirrors', 'mirror', 'parallels', 'parallel', 'resembles', 'resemble',
+        'regulates', 'regulate', 'governs', 'govern', 'restricts', 'restrict',
+        'constrains', 'constrain', 'limits', 'limit', 'oversees', 'oversee',
+        'reports', 'report', 'answers', 'answer', 'influences', 'influence',
+        'affects', 'affect', 'supports', 'support', 'funds', 'fund',
+        'billed', 'bill', 'using', 'used', 'use',
+    ])
+
+    # Relationship verbs used to split sentences into subject/object.
+    _REL_VERB_RE = re.compile(
+        r'\b('
+        # BOUNDS verbs
+        r'controls?|constrains?|limits?|regulates?|governs?|manages?|oversees?|restricts?|bounds?'
+        r'|reports?\s+to|accountable\s+to|answers?\s+to'
+        r'|has\s+(?:authority|power|control)\s+over'
+        # EXPRESSES verbs
+        r'|produces?|creates?|generates?|builds?|makes?|delivers?|outputs?'
+        r'|drives?|causes?|leads?\s+to|results?\s+in|feeds?|provides?|supplies?|enables?'
+        r'|offsets?'
+        # REMOVES verbs
+        r'|contradicts?|conflicts?\s+with|opposes?|undermines?|blocks?|prevents?'
+        r'|competes?\s+(?:with|for|against)|competing'
+        r'|fights?\s+(?:with|against|over|for)|clashes?\s+with'
+        # SEEKS verbs
+        r'|seeks?|wants?|needs?|tries?\s+to|attempts?\s+to|aims?\s+to'
+        r'|lacks?|cannot|can(?:\'|no)t|unable\s+to|has\s+no'
+        # INHERITS verbs
+        r'|depends?\s+on|relies?\s+on|derives?\s+from|based\s+on|inherits?|requires?'
+        r'|part\s+of|belongs?\s+to'
+        # MIRRORS verbs
+        r'|similar\s+to|parallels?|resembles?|mirrors?|analogous\s+to'
+        r'|same\s+as|equivalent\s+to|corresponds?\s+to'
+        # VERIFIES verbs
+        r'|proves?|confirms?|validates?|verifies?|demonstrates?'
+        r'|shows?\s+that|ensures?|guarantees?'
+        # Misc connectors
+        r'|increases?\s+with'
+        r')\b',
         re.IGNORECASE
     )
+
+    def _clean_noun_phrase(phrase: str) -> str:
+        """Clean a noun phrase: strip function words from edges, limit length."""
+        phrase = phrase.strip(' ,;:')
+        # Strip leading words: stop words, junk words, AND verbs.
+        # Strip trailing words: stop words, junk words, trailing adjectives
+        # (not verbs — "support", "control" etc. are often nouns at end).
+        changed = True
+        while changed:
+            changed = False
+            words = phrase.split()
+            if not words:
+                break
+            if words[0].lower() in _STOP_WORDS | _JUNK_WORDS | _VERBS:
+                phrase = ' '.join(words[1:])
+                changed = True
+            words = phrase.split()
+            if words and words[-1].lower() in _STOP_WORDS | _JUNK_WORDS | _TRAILING_ADJ:
+                phrase = ' '.join(words[:-1])
+                changed = True
+        # Limit to max 4 words.
+        words = phrase.split()
+        if len(words) > 4:
+            phrase = ' '.join(words[-4:])
+        return phrase.strip()
+
+    def _split_clause(text: str) -> list[str]:
+        """Split a clause into sub-phrases on conjunctions, prepositions, punctuation."""
+        parts = re.split(
+            r'\s*(?:,|;)\s*'
+            r'|\s+(?:and|or|but|with|who|which|that|while|although|however|yet'
+            r'|for|during|on|at|in|by|from|into|through|about|against)\s+',
+            text, flags=re.IGNORECASE
+        )
+        return [p.strip() for p in parts if p.strip()]
+
+    def _extract_noun_phrase(text: str) -> list[str]:
+        """Extract noun phrases from a clause. Handles lowercase compound nouns."""
+        text = text.strip()
+        if not text:
+            return []
+
+        results = []
+
+        # 1. Quoted terms: "demand shaving", 'energy arbitrage'
+        quoted = re.findall(r'["\']([^"\']+)["\']', text)
+        for q in quoted:
+            q = _clean_noun_phrase(q)
+            if q:
+                results.append(q)
+
+        # 2. Parenthetical terms: (time-of-use pricing)
+        parens = re.findall(r'\(([^)]+)\)', text)
+        for p in parens:
+            p = _clean_noun_phrase(p)
+            if p:
+                results.append(p)
+
+        # Remove quoted/parenthetical from text so we don't double-extract.
+        clean = re.sub(r'["\'][^"\']+["\']', ' ', text)
+        clean = re.sub(r'\([^)]+\)', ' ', clean)
+
+        # 3. Split clause into sub-phrases, clean each.
+        parts = _split_clause(clean)
+        for part in parts:
+            part = _clean_noun_phrase(part)
+            if part and _is_valid_entity(part):
+                results.append(part)
+
+        # 4. Capitalized phrases with optional lowercase continuation:
+        #    "Customer Support", "Load profile", "CEO"
+        cap_extended = re.findall(
+            r'\b([A-Z][a-zA-Z]*(?:\s+[a-zA-Z][a-z]+)*)\b', clean
+        )
+        for c in cap_extended:
+            c = _clean_noun_phrase(c)
+            if c and _is_valid_entity(c) and len(c) > 2:
+                results.append(c)
+
+        # 5. Known domain terms (from frequency analysis) in this clause.
+        clause_lower = clean.lower()
+        for term in domain_terms:
+            if term in clause_lower:
+                results.append(term)
+
+        return results
+
+    # Adjectives that shouldn't end a noun phrase.
+    _TRAILING_ADJ = frozenset([
+        'catastrophic', 'aggressive', 'missed', 'highest', 'lowest',
+        'commercial', 'direct', 'indirect', 'critical', 'major', 'minor',
+        'significant', 'total', 'partial', 'full', 'empty', 'open', 'closed',
+    ])
 
     def _is_valid_entity(phrase: str) -> bool:
         """Check if a phrase is a real entity, not a verb or junk."""
         words = phrase.lower().split()
-        # All stop words = not an entity.
-        if all(w in _STOP_WORDS for w in words):
+        if not words:
             return False
-        # Too short.
+        # All stop words = not an entity.
+        if all(w in _STOP_WORDS or w in _JUNK_WORDS for w in words):
+            return False
+        # Single character or too short.
         if len(phrase) < 3:
             return False
-        # Contains junk patterns.
-        if _JUNK_PATTERNS.search(phrase):
+        # Contains conjunction in the middle → not a clean noun phrase.
+        if any(w in ('and', 'or', 'but') for w in words):
             return False
-        # Starts with a verb/preposition (common false positive).
-        verb_starts = ('controls', 'manages', 'builds', 'sees', 'has',
-                       'gets', 'does', 'makes', 'takes', 'gives', 'keeps')
-        if words[0] in verb_starts:
+        # Starts with a common verb (false positive).
+        if words[0] in _VERBS:
+            return False
+        # Ends with a bare adjective (no noun after it).
+        if words[-1] in _TRAILING_ADJ:
+            return False
+        # Pure numbers.
+        if re.match(r'^[\d\s.,-]+$', phrase):
+            return False
+        # Single generic words that aren't useful entities alone.
+        if len(words) == 1 and words[0] in (
+            'load', 'generation', 'rate', 'demand', 'energy', 'net',
+            'company', 'organization', 'system', 'structure', 'process',
+        ):
             return False
         return True
 
+    # --- Phase 1: Frequency-based domain term discovery ---
+    # Count 2-word and 3-word lowercase phrases across all sentences.
+    # Phrases appearing 2+ times are likely domain terms.
+    bigram_counts: dict[str, int] = {}
+    full_text_lower = description.lower()
+    # Extract all 2-3 word sequences.
+    words_all = re.findall(r'[a-z][\w-]*', full_text_lower)
+    for n in (2, 3):
+        for i in range(len(words_all) - n + 1):
+            gram_words = words_all[i:i+n]
+            # Skip if first or last word is a stop word/verb/junk.
+            if gram_words[0] in _STOP_WORDS | _JUNK_WORDS | _VERBS:
+                continue
+            if gram_words[-1] in _STOP_WORDS | _JUNK_WORDS | _VERBS:
+                continue
+            gram = ' '.join(gram_words)
+            bigram_counts[gram] = bigram_counts.get(gram, 0) + 1
+
+    # Domain terms: multi-word phrases appearing 2+ times.
+    domain_terms = set()
+    for gram, count in bigram_counts.items():
+        if count >= 2:
+            domain_terms.add(gram)
+
+    # Pre-register domain terms as entities.
+    for term in domain_terms:
+        if _is_valid_entity(term):
+            _add_entity(term)
+
+    # --- Phase 2: Sentence-by-sentence entity and edge extraction ---
     for sentence in sentences:
-        # 1. Find capitalized multi-word phrases: "Customer Support", "CEO"
-        caps = re.findall(r'\b([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*)\b', sentence)
-
-        # 2. Find nouns that are objects of relationship verbs:
-        #    "controls [all] [the] departments"
-        verb_objects = re.findall(
-            r'(?:controls?|manages?|builds?|produces?|influences?|affects?|'
-            r'drives?|enables?|blocks?|prevents?|supports?|funds?|oversees?|'
-            r'regulates?)\s+(?:all\s+)?(?:the\s+)?([A-Za-z]+)',
-            sentence, re.IGNORECASE
-        )
-
-        # 3. Find "cannot influence X" patterns.
-        negation_objects = re.findall(
-            r'(?:cannot|can(?:\'|no)t)\s+'
-            r'(?:influence|affect|reach|access|control|change)\s+'
-            r'(?:the\s+)?([A-Z][A-Za-z]*(?:\s+[A-Za-z]+)?)',
-            sentence
-        )
+        # Split sentence at relationship verb to get subject and object clauses.
+        verb_match = _REL_VERB_RE.search(sentence)
 
         found_entities = []
-        for phrase in caps + verb_objects + negation_objects:
-            phrase = phrase.strip()
-            if _is_valid_entity(phrase):
+
+        if verb_match:
+            subject_clause = sentence[:verb_match.start()]
+            verb_text = verb_match.group(0)
+            object_clause = sentence[verb_match.end():]
+
+            # Extract entities from subject side.
+            subj_phrases = _extract_noun_phrase(subject_clause)
+            for phrase in subj_phrases:
                 nid = _add_entity(phrase)
                 if nid:
                     found_entities.append(nid)
+
+            # Extract entities from object side.
+            obj_phrases = _extract_noun_phrase(object_clause)
+            for phrase in obj_phrases:
+                nid = _add_entity(phrase)
+                if nid:
+                    found_entities.append(nid)
+
+            # Also check for a second verb match in the object clause
+            # e.g. "Customer Support sees problems but cannot influence Engineering priorities"
+            verb_match2 = _REL_VERB_RE.search(object_clause)
+            if verb_match2:
+                obj2_clause = object_clause[verb_match2.end():]
+                obj2_phrases = _extract_noun_phrase(obj2_clause)
+                for phrase in obj2_phrases:
+                    nid = _add_entity(phrase)
+                    if nid:
+                        found_entities.append(nid)
+        else:
+            # No relationship verb found — extract all noun phrases.
+            all_phrases = _extract_noun_phrase(sentence)
+            for phrase in all_phrases:
+                nid = _add_entity(phrase)
+                if nid:
+                    found_entities.append(nid)
+
+        # Also scan for domain terms explicitly in this sentence.
+        sent_lower = sentence.lower()
+        for term in domain_terms:
+            if term in sent_lower and _is_valid_entity(term):
+                nid = _add_entity(term)
+                if nid and nid not in found_entities:
+                    found_entities.append(nid)
+
+        # Also extract capitalized phrases that might have been missed.
+        # Skip single capitalized words at sentence start (just capitalization convention).
+        caps = re.findall(r'\b([A-Z][a-zA-Z]*(?:\s+[A-Z][a-zA-Z]*)*)\b', sentence)
+        for ci, c in enumerate(caps):
+            c = _clean_noun_phrase(c)
+            if not c or not _is_valid_entity(c):
+                continue
+            # Single word at sentence start is likely just capitalization, not an entity.
+            # Keep it only if it's an acronym (all caps) or appears capitalized mid-sentence too.
+            if ' ' not in c and ci == 0 and not c.isupper():
+                # Check if this word appears capitalized elsewhere (mid-sentence).
+                word_re = re.compile(r'(?<!^)(?<![.!?]\s)\b' + re.escape(c) + r'\b')
+                if not word_re.search(description):
+                    continue
+            nid = _add_entity(c)
+            if nid and nid not in found_entities:
+                found_entities.append(nid)
 
         # Deduplicate while preserving order.
         seen = set()
@@ -195,7 +424,7 @@ def _parse_text_to_graph(description: str) -> dict:
                 edge_type = etype
                 break
 
-        # For "reports to" / "accountable to" — the direction is reversed
+        # For "reports to" / "accountable to" — direction is reversed
         # (A reports to B means B BOUNDS A).
         reverse = bool(re.search(
             r'(?:reports?\s+to|accountable\s+to|answers?\s+to|under\b)',
