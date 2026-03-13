@@ -593,16 +593,71 @@ async def list_tools():
         Tool(
             name="tca_analyze_text",
             description=(
-                "Describe ANY system in plain English. TCA maps it as a "
-                "topological graph and finds structural problems (dead ends, "
-                "feedback traps, star topologies, contradictions, ungrounded "
-                "claims) with proposed solutions. Use this whenever someone "
-                "wants to understand the structure of any system — a company, "
-                "a country, a religion, an economy, a relationship, a plan.\n\n"
-                "Pass a plain text description. TCA extracts entities and "
-                "relationships automatically, builds the graph, and analyzes it.\n\n"
-                "Include: key entities, who controls whom, what produces what, "
-                "what contradicts what, what's unproven. More detail = better graph."
+                "TCA — Topological Cognitive Architecture. A deterministic structural analysis engine. "
+                "Zero AI. Zero learned parameters. You give it a graph. It does math on the shape of "
+                "connections and returns what's broken. Think of it as a calculator for system structure.\n\n"
+
+                "YOU ARE THE KEYBOARD. TCA IS THE CALCULATOR. THE USER IS ASKING THE QUESTION.\n"
+                "You do NOT analyze systems yourself when TCA is available. You BUILD the graph and "
+                "let TCA analyze it. Your job is translating the user's question into a topological "
+                "graph. TCA's job is finding what's structurally broken. Never mix these roles.\n\n"
+
+                "WHEN TO USE: Any time the user asks about the STRUCTURE of something — 'What's broken "
+                "about X?', 'Analyze the structure of...', 'What are the contradictions in...', "
+                "'Why does X keep failing?', any system, company, country, religion, plan, relationship, "
+                "ideology, business model, technology stack. Also for comparing two things structurally "
+                "or checking a plan for hidden dependencies.\n"
+                "When NOT to use: simple facts, coding, math, creative writing.\n\n"
+
+                "HOW TO BUILD A GRAPH:\n"
+                "Pass the 'description' parameter as a JSON string with this format:\n"
+                '{"name": "System Name", "nodes": [{"id": "snake_case", "label": "Human Label"}], '
+                '"edges": [{"source": "from_id", "target": "to_id", "type": "EDGE_TYPE", "weight": 1.0}]}\n\n'
+
+                "THE 7 EDGE TYPES (this is the core — choosing the right type is EVERYTHING):\n"
+                "MIRRORS — A reflects/parallels B. Structural analogy.\n"
+                "INHERITS — A derives from/depends on B. A couldn't exist without B.\n"
+                "BOUNDS — A constrains/limits/controls B. Power structure.\n"
+                "EXPRESSES — A produces/causes/creates B. Direct causal output.\n"
+                "VERIFIES — A proves/grounds B with evidence. A provides evidence B is real.\n"
+                "REMOVES — A contradicts/destroys/undermines B. Structural conflict.\n"
+                "SEEKS — A wants B but hasn't proven it. Aspiration. Unverified claim.\n\n"
+
+                "CRITICAL RULES:\n"
+                "1. If it's unproven, use SEEKS not VERIFIES. Most plans are mostly SEEKS edges.\n"
+                "2. ALWAYS include REMOVES edges. Every real system has contradictions. Zero REMOVES = naive.\n"
+                "3. ALWAYS include BOUNDS edges. Every system has power structures and constraints.\n"
+                "4. Don't make everything EXPRESSES. Ask: Is this actually BOUNDS? REMOVES? SEEKS? INHERITS?\n"
+                "5. 10-25 nodes. Under 10 is too simple. Over 25 is noise.\n"
+                "6. Model the tensions, not just the entities. Include the shadow structure — informal "
+                "power, unspoken conflicts, aspirational claims that aren't proven.\n\n"
+
+                "HOW TO READ OUTPUT:\n"
+                "- confidence: 0.0-1.0. Under 0.4 = structurally fragile.\n"
+                "- problems: contradictions (REMOVES edges — present these FIRST, most valuable), "
+                "feedback_traps (circular loops), dead_ends (sinks with no output), "
+                "star_topologies (single points of failure).\n"
+                "- questions: SEEKS edges — unproven assumptions.\n"
+                "- solutions: proposed structural fixes ranked by confidence.\n\n"
+
+                "PRESENTING RESULTS: Lead with contradictions. Then feedback traps. Then dead ends. "
+                "Then unproven assumptions. Then solutions. Use the user's language — say 'Revenue "
+                "contradicts your open source goal' NOT 'REMOVES edge detected'. State the confidence.\n\n"
+
+                "WORKFLOW: User describes system → You build 10-25 node graph with honest edge types → "
+                "Call tca_analyze_text with JSON graph → Present findings → User says 'fix #2' → "
+                "Call tca_apply → Present what changed → User wants to save → Call tca_export.\n\n"
+
+                "COMMON MISTAKES:\n"
+                "- All EXPRESSES edges (didn't think about power, conflict, or uncertainty)\n"
+                "- Zero REMOVES edges (hiding contradictions)\n"
+                "- Under 7 nodes (not enough structure for patterns)\n"
+                "- Using VERIFIES for hopes (if not proven, it's SEEKS)\n"
+                "- Analyzing the system yourself instead of letting TCA do it\n"
+                "- Presenting raw graph terminology to users\n\n"
+
+                "Also accepts plain English as fallback — TCA will attempt to parse entities and "
+                "relationships automatically, but structured JSON graphs produce far better results."
             ),
             inputSchema={
                 "type": "object",
@@ -610,9 +665,11 @@ async def list_tools():
                     "description": {
                         "type": "string",
                         "description": (
-                            "Plain English description of the system to analyze. "
-                            "Name the entities, describe relationships, mention "
-                            "tensions and goals."
+                            "PREFERRED: A JSON string with format "
+                            '{"name": "...", "nodes": [{"id": "...", "label": "..."}], '
+                            '"edges": [{"source": "...", "target": "...", "type": "EDGE_TYPE", "weight": 1.0}]}. '
+                            "Edge types: MIRRORS, INHERITS, BOUNDS, EXPRESSES, VERIFIES, REMOVES, SEEKS. "
+                            "FALLBACK: Plain English description of the system (less accurate)."
                         ),
                     },
                 },
