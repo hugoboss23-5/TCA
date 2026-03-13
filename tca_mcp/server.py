@@ -183,7 +183,12 @@ async def call_tool(name: str, arguments: dict):
 
 async def _handle_tool(name: str, arguments: dict) -> dict:
     if name == "tca_analyze_text":
-        return _analyze_graph(arguments["graph"])
+        if "graph" in arguments:
+            return _analyze_graph(arguments["graph"])
+        elif "description" in arguments:
+            return {"error": "You sent a text description. TCA needs a graph JSON object, not text. Build the graph yourself with nodes and edges, then pass it as the 'graph' parameter. See the tool description for the format and example."}
+        else:
+            return {"error": "Missing 'graph' parameter. Pass a JSON object with 'name', 'nodes', and 'edges'. See tool description for format."}
     elif name == "tca_template":
         return _load_template(arguments["template_name"])
     elif name == "tca_solve":
