@@ -724,7 +724,22 @@ def _handle_tool(name: str, arguments: dict) -> dict:
 
 
 def _analyze_text(description: str) -> dict:
-    """Text -> Graph -> Analysis. Parses plain English into a graph, then analyzes."""
+    """Text -> Graph -> Analysis.
+
+    Accepts EITHER:
+      1. A JSON graph object (string): {"name": ..., "nodes": [...], "edges": [...]}
+         — Claude builds the graph, TCA does the math. Primary workflow.
+      2. Plain English description of a system.
+         — Text parser extracts entities and relationships. Fallback.
+    """
+    # Check if the description is actually a JSON graph object.
+    try:
+        parsed = json.loads(description)
+        if isinstance(parsed, dict) and "nodes" in parsed and "edges" in parsed:
+            return _analyze_graph(parsed)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        pass  # Not JSON — fall through to text parser.
+
     graph_data = _parse_text_to_graph(description)
 
     if not graph_data.get("nodes"):
