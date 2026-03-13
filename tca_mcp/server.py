@@ -305,55 +305,36 @@ def _export(graph_id: str, fmt: str) -> dict:
     return engine.export_state(graph_id) or {"error": "Graph not found"}
 
 
-# --- SSE Transport ---
+# --- SSE Transport (matching KD's proven pattern) ---
+
+from fastapi import FastAPI, Request
+from starlette.responses import Response
+from starlette.routing import Route
 
 sse = SseServerTransport("/messages/")
 
 
-async def _app(scope, receive, send):
-    """Raw ASGI app with path routing for SSE and POST, CORS enabled."""
-    path = scope.get("path", "")
-    if scope["type"] == "lifespan":
-        return
-    if scope["type"] == "http":
-        # CORS preflight
-        if scope.get("method") == "OPTIONS":
-            headers = [
-                (b"access-control-allow-origin", b"*"),
-                (b"access-control-allow-methods", b"GET, POST, OPTIONS"),
-                (b"access-control-allow-headers", b"*"),
-                (b"content-length", b"0"),
-            ]
-            await send({"type": "http.response.start", "status": 200, "headers": headers})
-            await send({"type": "http.response.body", "body": b""})
-            return
-        # Inject CORS headers into all responses
-        original_send = send
-        async def cors_send(message):
-            if message["type"] == "http.response.start":
-                headers = list(message.get("headers", []))
-                headers.append((b"access-control-allow-origin", b"*"))
-                headers.append((b"access-control-allow-methods", b"GET, POST, OPTIONS"))
-                headers.append((b"access-control-allow-headers", b"*"))
-                message["headers"] = headers
-            await original_send(message)
-        if path == "/sse":
-            async with sse.connect_sse(scope, receive, cors_send) as streams:
-                await server.run(
-                    streams[0],
-                    streams[1],
-                    server.create_initialization_options(),
-                )
-            return
-        if path.startswith("/messages"):
-            await sse.handle_post_message(scope, receive, cors_send)
-            return
-    from starlette.responses import Response
-    response = Response("Not Found", status_code=404)
-    await response(scope, receive, send)
+async def handle_sse_endpoint(request: Request):
+    async with sse.connect_sse(
+        request.scope, request.receive, request._send
+    ) as streams:
+        await server.run(
+            streams[0], streams[1], server.create_initialization_options()
+        )
+    return Response()
 
 
-app = _app
+async def handle_messages_endpoint(request: Request):
+    await sse.handle_post_message(request.scope, request.receive, request._send)
+
+
+routes = [
+    Route("/sse", handle_sse_endpoint),
+    Route("/messages/", handle_messages_endpoint, methods=["POST"]),
+]
+
+app = FastAPI(routes=routes)
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8100)
+    port = int(os.environ.get("PORT", 8100))
+    uvicorn.run(app, host="0.0.0.0", port=port)
