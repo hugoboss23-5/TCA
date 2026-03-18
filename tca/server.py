@@ -14,7 +14,8 @@ from mcp.server.sse import SseServerTransport
 from mcp.types import Tool, TextContent
 import uvicorn
 
-from api import engine
+from tca import engine
+from tca.templates import AVAILABLE as TEMPLATE_LIST
 
 server = Server("tca")
 
@@ -680,18 +681,14 @@ async def list_tools():
             name="tca_template",
             description=(
                 "Load a pre-built TCA graph with instant analysis. "
-                "Templates: economics, tanakh, us_geopolitics, "
-                "china_geopolitics, apple, openai."
+                f"Templates: {', '.join(TEMPLATE_LIST)}."
             ),
             inputSchema={
                 "type": "object",
                 "properties": {
                     "template_name": {
                         "type": "string",
-                        "enum": [
-                            "economics", "tanakh", "us_geopolitics",
-                            "china_geopolitics", "apple", "openai",
-                        ],
+                        "enum": TEMPLATE_LIST,
                     }
                 },
                 "required": ["template_name"],
